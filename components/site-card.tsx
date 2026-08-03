@@ -8,9 +8,10 @@ type SiteCardProps = {
   slug: string;
   published: boolean;
   updatedAt: string;
+  views: number;
 };
 
-export default function SiteCard({ id, name, slug, published, updatedAt }: SiteCardProps) {
+export default function SiteCard({ id, name, slug, published, updatedAt, views }: SiteCardProps) {
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 transition-colors hover:border-zinc-700">
       <div className="flex items-start justify-between gap-3">
@@ -28,7 +29,10 @@ export default function SiteCard({ id, name, slug, published, updatedAt }: SiteC
           {published ? "Опубликован" : "Черновик"}
         </span>
       </div>
-      <p className="text-xs text-zinc-500">Обновлён {updatedAt}</p>
+      <p className="text-xs text-zinc-500">
+        Обновлён {updatedAt}
+        {views > 0 && ` · ${views} просмотров`}
+      </p>
       <div className="flex items-center gap-2">
         <Link
           href={`/build/${id}`}

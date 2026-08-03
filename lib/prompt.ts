@@ -12,6 +12,17 @@ const SECTION_LABELS: Record<string, string> = {
 
 export const SECTION_OPTIONS = Object.keys(SECTION_LABELS);
 
+export const STYLE_OPTIONS = ["modern", "minimal", "dark", "playful", "corporate"] as const;
+export type StyleOption = (typeof STYLE_OPTIONS)[number];
+
+const styleGuide: Record<string, string> = {
+  modern: "современный, чистый, много воздуха, акцентные градиенты",
+  minimal: "минимализм, почти без цветов, типографика решает",
+  dark: "тёмная тема, неоновые акценты, tech-стиль",
+  playful: "яркий, дружелюбный, скруглённые формы, крупная типографика",
+  corporate: "деловой, строгий, консервативные цвета",
+};
+
 export function buildPrompt(input: {
   name: string;
   description: string;
@@ -22,14 +33,6 @@ export function buildPrompt(input: {
   const sectionLines = input.sections
     .map((s) => SECTION_LABELS[s] ?? s)
     .join("\n- ");
-
-  const styleGuide: Record<string, string> = {
-    modern: "современный, чистый, много воздуха, акцентные градиенты",
-    minimal: "минимализм, почти без цветов, типографика решает",
-    dark: "тёмная тема, неоновые акценты, tech-стиль",
-    playful: "яркий, дружелюбный, скруглённые формы, крупная типографика",
-    corporate: "деловой, строгий, консервативные цвета",
-  };
 
   return `Сгенерируй законченный одностраничный лендинг на русском языке.
 

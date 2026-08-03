@@ -60,6 +60,7 @@ export default async function DashboardPage() {
               name={site.name}
               slug={site.slug}
               published={site.published}
+              views={site.views}
               updatedAt={new Date(site.updatedAt).toLocaleDateString("ru-RU")}
             />
           ))}

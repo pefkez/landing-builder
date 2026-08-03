@@ -2,11 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic, { APIError } from "@anthropic-ai/sdk";
+import { z } from "zod";
 
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { buildPrompt, SECTION_OPTIONS } from "@/lib/prompt";
+import { buildPrompt, SECTION_OPTIONS, STYLE_OPTIONS } from "@/lib/prompt";
+import { rateLimit } from "@/lib/rate-limit";
+import { getGenerationsLimitDay, getMaxHtmlLength } from "@/lib/limits";
+import { requireUser } from "@/lib/user";
 
 export type GenerateState = { error?: string } | undefined;
 
@@ -16,15 +19,38 @@ function extractHtml(text: string): string {
   return text.trim();
 }
 
+function friendlyError(error: unknown): string {
+  if (error instanceof APIError) {
+    if (error.status === 401) return "Невалидный ключ Anthropic";
+    if (error.status === 429) return "Слишком много запросов к ИИ, подожди минуту";
+    if (error.status === 529) return "ИИ перегружен, попробуй через минуту";
+    return `Ошибка ИИ (${error.status ?? "сеть"}). Попробуй ещё раз`;
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return "Неизвестная ошибка генерации";
+}
+
 export async function generateSite(siteId: string): Promise<{ html: string }> {
-  const userId = await (async () => {
-    const session = await auth();
-    if (!session) redirect("/login");
-    return session.user.id;
-  })();
+  const userId = await requireUser();
+  if (typeof siteId !== "string" || !siteId) redirect("/dashboard");
 
   const site = await prisma.site.findFirst({ where: { id: siteId, userId } });
   if (!site) redirect("/dashboard");
+
+  const burst = rateLimit(`generate:${userId}`, 5, 60 * 1000);
+  if (!burst.ok)
+    throw new Error("Не так быстро: максимум 5 генераций в минуту");
+
+  const dayLimit = getGenerationsLimitDay();
+  const lastDay = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const usedToday = await prisma.generationLog.count({
+    where: { createdAt: { gte: lastDay }, site: { userId } },
+  });
+  if (usedToday >= dayLimit) {
+    throw new Error(
+      `Лимит бесплатного плана: ${dayLimit} генераций в сутки. Вернись завтра`
+    );
+  }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -46,23 +72,27 @@ export async function generateSite(siteId: string): Promise<{ html: string }> {
     extra: site.prompt || "",
   });
 
-  const anthropic = new Anthropic({ apiKey });
-  const response = await anthropic.messages.create({
-    model,
-    max_tokens: 8192,
-    system:
-      "Ты — эксперт по созданию лендингов. Генерируешь продающие одностраничники отличного качества.",
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const text = response.content
-    .filter((block) => block.type === "text")
-    .map((block) => block.text)
-    .join("\n");
+  let text: string;
+  try {
+    const anthropic = new Anthropic({ apiKey });
+    const response = await anthropic.messages.create({
+      model,
+      max_tokens: 8192,
+      system:
+        "Ты — эксперт по созданию лендингов. Генерируешь продающие одностраничники отличного качества.",
+      messages: [{ role: "user", content: prompt }],
+    });
+    text = response.content
+      .filter((block) => block.type === "text")
+      .map((block) => block.text)
+      .join("\n");
+  } catch (error) {
+    throw new Error(friendlyError(error));
+  }
 
   const html = extractHtml(text);
   if (!html.includes("<html")) {
-    throw new Error("ИИ вернул не HTML. Попробуй ещё раз.");
+    throw new Error("ИИ вернул не HTML. Попробуй ещё раз");
   }
 
   await prisma.$transaction([
@@ -75,46 +105,78 @@ export async function generateSite(siteId: string): Promise<{ html: string }> {
     }),
   ]);
   revalidatePath(`/build/${site.id}`);
+  revalidatePath(`/s/${site.slug}`);
 
   return { html };
 }
+
+const settingsSchema = z.object({
+  description: z.string().trim().max(500, "Описание слишком длинное"),
+  style: z.enum(STYLE_OPTIONS, { message: "Неизвестный стиль" }),
+  sections: z
+    .array(z.enum(SECTION_OPTIONS as [string, ...string[]], {
+      message: "Неизвестная секция",
+    }))
+    .min(1, "Выбери хотя бы одну секцию")
+    .max(10, "Максимум 10 секций"),
+  prompt: z.string().trim().max(500, "Требования слишком длинные"),
+});
 
 export async function updateSiteSettings(
   siteId: string,
   formData: FormData
 ): Promise<GenerateState> {
-  const userId = await (async () => {
-    const session = await auth();
-    if (!session) redirect("/login");
-    return session.user.id;
-  })();
+  const userId = await requireUser();
 
   const site = await prisma.site.findFirst({ where: { id: siteId, userId } });
   if (!site) return { error: "Сайт не найден" };
 
-  const description = String(formData.get("description") ?? "").trim().slice(0, 500);
-  const style = String(formData.get("style") ?? "modern");
-  const sections = formData.getAll("sections").map(String).slice(0, 10);
-  const prompt = String(formData.get("prompt") ?? "").trim().slice(0, 500);
+  const parsed = settingsSchema.safeParse({
+    description: formData.get("description"),
+    style: formData.get("style"),
+    sections: formData.getAll("sections").map(String),
+    prompt: formData.get("prompt"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const { description, style, sections, prompt } = parsed.data;
+  await prisma.site.update({
+    where: { id: site.id },
+    data: { description, style, sections: sections.join(","), prompt },
+  });
+  revalidatePath(`/build/${site.id}`);
+
+  return {};
+}
+
+export async function saveHtml(
+  siteId: string,
+  html: string
+): Promise<GenerateState> {
+  const userId = await requireUser();
+
+  const site = await prisma.site.findFirst({ where: { id: siteId, userId } });
+  if (!site) return { error: "Сайт не найден" };
+
+  const value = String(html ?? "").trim();
+  if (!value) return { error: "HTML пустой" };
+  const maxLen = getMaxHtmlLength();
+  if (value.length > maxLen) {
+    return { error: `HTML слишком большой (максимум ${Math.round(maxLen / 1024)} КБ)` };
+  }
 
   await prisma.site.update({
     where: { id: site.id },
-    data: {
-      description,
-      style,
-      sections: sections.length ? sections.join(",") : "hero,features,cta",
-      prompt,
-    },
+    data: { html: value },
   });
   revalidatePath(`/build/${site.id}`);
+  revalidatePath(`/s/${site.slug}`);
+
+  return {};
 }
 
 export async function togglePublish(siteId: string) {
-  const userId = await (async () => {
-    const session = await auth();
-    if (!session) redirect("/login");
-    return session.user.id;
-  })();
+  const userId = await requireUser();
 
   const site = await prisma.site.findFirst({ where: { id: siteId, userId } });
   if (!site || !site.html) return;

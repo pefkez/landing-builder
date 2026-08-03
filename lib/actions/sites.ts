@@ -2,28 +2,34 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getSitesLimit } from "@/lib/limits";
+import { requireUser } from "@/lib/user";
 import { slugify } from "@/lib/slugify";
 
-async function requireUser() {
-  const session = await auth();
-  if (!session) redirect("/login");
-  return session.user.id;
-}
-
 export type CreateSiteState = { error?: string } | undefined;
+
+const createSchema = z.object({
+  name: z.string().trim().min(1, "Введи название сайта").max(60, "Название слишком длинное"),
+});
 
 export async function createSite(
   _prev: CreateSiteState,
   formData: FormData
 ): Promise<CreateSiteState> {
   const userId = await requireUser();
-  const name = String(formData.get("name") ?? "").trim();
-  if (!name) return { error: "Введи название сайта" };
-  if (name.length > 60) return { error: "Название слишком длинное" };
+  const parsed = createSchema.safeParse({ name: formData.get("name") });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
 
+  const limit = getSitesLimit();
+  const count = await prisma.site.count({ where: { userId } });
+  if (count >= limit) {
+    return { error: `Лимит бесплатного плана: ${limit} лендинга. Удали ненужный` };
+  }
+
+  const name = parsed.data.name;
   let slug = slugify(name) || "site";
   const existing = await prisma.site.findUnique({ where: { slug } });
   if (existing) slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;

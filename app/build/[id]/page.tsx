@@ -33,6 +33,7 @@ export default async function BuildPage({
         prompt: site.prompt,
         html: site.html,
         published: site.published,
+        views: site.views,
       }}
     />
   );
