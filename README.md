@@ -47,6 +47,13 @@ lib/actions/        — серверные действия (создание, �
 prisma/             — schema (sqlite локально / postgres в проде)
 ```
 
+## Полезные команды
+
+```
+npm run lint         # eslint
+npx prisma studio    # посмотреть данные в браузере
+```
+
 ## Деплой на Vercel
 
 Нужен postgres (например, Neon или Supabase):
