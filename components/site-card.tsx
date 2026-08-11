@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { deleteSite } from "@/lib/actions/sites";
+import DeleteSiteButton from "@/components/delete-site-button";
 
 type SiteCardProps = {
   id: string;
@@ -49,14 +49,7 @@ export default function SiteCard({ id, name, slug, published, updatedAt, views }
             Открыть
           </a>
         )}
-        <form action={deleteSite.bind(null, id)} className="ml-auto">
-          <button
-            type="submit"
-            className="rounded-lg px-3.5 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-red-500/10 hover:text-red-400"
-          >
-            Удалить
-          </button>
-        </form>
+        <DeleteSiteButton siteId={id} />
       </div>
     </div>
   );

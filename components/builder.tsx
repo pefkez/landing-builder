@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import {
   generateSite,
@@ -9,6 +10,8 @@ import {
   togglePublish,
   saveHtml,
 } from "@/lib/actions/generate";
+import { renameSite } from "@/lib/actions/sites";
+import { slugify } from "@/lib/slugify";
 import { SECTION_OPTIONS, STYLE_OPTIONS } from "@/lib/prompt";
 
 export type BuilderSite = {
@@ -37,6 +40,10 @@ const SECTION_NAMES: Record<string, string> = {
 };
 
 export default function Builder({ site }: { site: BuilderSite }) {
+  const router = useRouter();
+  const [name, setName] = useState(site.name);
+  const [slug, setSlug] = useState(site.slug);
+  const [slugTouched, setSlugTouched] = useState(false);
   const [description, setDescription] = useState(site.description);
   const [style, setStyle] = useState(site.style);
   const [sections, setSections] = useState<string[]>(
@@ -50,8 +57,34 @@ export default function Builder({ site }: { site: BuilderSite }) {
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [htmlSaving, setHtmlSaving] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  function handleNameChange(value: string) {
+    setName(value);
+    if (!slugTouched) setSlug(slugify(value));
+  }
+
+  async function handleRename(e: React.FormEvent) {
+    e.preventDefault();
+    setRenaming(true);
+    setError(null);
+    const form = new FormData();
+    form.set("name", name);
+    form.set("slug", slug);
+    try {
+      const result = await renameSite(site.id, undefined, form);
+      if (result?.error) setError(result.error);
+      else {
+        setNotice("Название и ссылка сохранены");
+        setSlugTouched(false);
+        router.refresh();
+      }
+    } finally {
+      setRenaming(false);
+    }
+  }
 
   function toggleSection(name: string) {
     setSections((prev) =>
@@ -118,7 +151,7 @@ export default function Builder({ site }: { site: BuilderSite }) {
     }
   }
 
-  const previewUrl = "/s/" + site.slug;
+  const previewUrl = "/s/" + slug;
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
@@ -130,15 +163,42 @@ export default function Builder({ site }: { site: BuilderSite }) {
           >
             ← Дашборд
           </Link>
-          <h1 className="mt-1 text-2xl font-bold">{site.name}</h1>
-          <p className="text-sm text-zinc-500">
-            /{site.slug}
-            {site.views > 0 && (
-              <span className="ml-2 text-zinc-600">
-                · {site.views} просмотров
-              </span>
-            )}
-          </p>
+          <form onSubmit={handleRename} className="mt-1 flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <input
+                value={name}
+                onChange={(e) => handleNameChange(e.target.value)}
+                maxLength={60}
+                aria-label="Название сайта"
+                className="w-full max-w-md rounded-lg border border-transparent bg-transparent px-1 py-0.5 text-2xl font-bold outline-none transition-colors hover:border-zinc-700 focus:border-violet-500"
+              />
+              <button
+                type="submit"
+                disabled={renaming}
+                className="shrink-0 rounded-lg bg-zinc-800 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-zinc-700 disabled:opacity-50"
+              >
+                {renaming ? "Сохраняем..." : "Сохранить"}
+              </button>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-zinc-500">
+              <span className="select-none">/</span>
+              <input
+                value={slug}
+                onChange={(e) => {
+                  setSlug(e.target.value);
+                  setSlugTouched(true);
+                }}
+                maxLength={40}
+                aria-label="Ссылка сайта"
+                className="w-full max-w-md rounded-lg border border-transparent bg-transparent px-1 py-0.5 text-sm outline-none transition-colors hover:border-zinc-700 focus:border-violet-500"
+              />
+              {site.views > 0 && (
+                <span className="whitespace-nowrap text-zinc-600">
+                  · {site.views} просмотров
+                </span>
+              )}
+            </div>
+          </form>
         </div>
         <div className="flex items-center gap-2">
           {published && html && (
@@ -273,7 +333,7 @@ export default function Builder({ site }: { site: BuilderSite }) {
                     target="_blank"
                     className="text-violet-400 hover:underline"
                   >
-                    /s/{site.slug}
+                    /s/{slug}
                   </a>
                 </p>
               )}
@@ -313,7 +373,7 @@ export default function Builder({ site }: { site: BuilderSite }) {
                   <span className="h-2.5 w-2.5 rounded-full bg-red-500/80" />
                   <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/80" />
                   <span className="h-2.5 w-2.5 rounded-full bg-green-500/80" />
-                  <span className="ml-2 text-xs text-zinc-500">/{site.slug}</span>
+                  <span className="ml-2 text-xs text-zinc-500">/{slug}</span>
                 </div>
                 <iframe
                   title="Превью лендинга"
