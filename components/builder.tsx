@@ -22,6 +22,8 @@ export type BuilderSite = {
   style: string;
   sections: string;
   prompt: string;
+  customCss: string;
+  contactEnabled: boolean;
   html: string;
   published: boolean;
   views: number;
@@ -50,6 +52,8 @@ export default function Builder({ site }: { site: BuilderSite }) {
     site.sections.split(",").map((s) => s.trim()).filter(Boolean)
   );
   const [extra, setExtra] = useState(site.prompt);
+  const [customCss, setCustomCss] = useState(site.customCss);
+  const [contactEnabled, setContactEnabled] = useState(site.contactEnabled);
   const [html, setHtml] = useState(site.html);
   const [published, setPublished] = useState(site.published);
   const [editing, setEditing] = useState(false);
@@ -115,6 +119,8 @@ export default function Builder({ site }: { site: BuilderSite }) {
     form.set("style", style);
     sections.forEach((s) => form.append("sections", s));
     form.set("prompt", extra);
+    form.set("customCss", customCss);
+    form.set("contactEnabled", String(contactEnabled));
     try {
       const result = await updateSiteSettings(site.id, form);
       if (result?.error) setError(result.error);
@@ -201,6 +207,14 @@ export default function Builder({ site }: { site: BuilderSite }) {
           </form>
         </div>
         <div className="flex items-center gap-2">
+          {html && (
+            <a
+              href={`/api/sites/${site.id}/export`}
+              className="rounded-lg bg-zinc-800 px-3.5 py-2 text-sm font-medium transition-colors hover:bg-zinc-700"
+            >
+              Скачать ZIP
+            </a>
+          )}
           {published && html && (
             <a
               href={previewUrl}
@@ -298,6 +312,30 @@ export default function Builder({ site }: { site: BuilderSite }) {
               className="resize-none rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none placeholder:text-zinc-600 focus:border-violet-500"
             />
           </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-zinc-300">
+              Свои стили (CSS)
+            </label>
+            <textarea
+              value={customCss}
+              onChange={(e) => setCustomCss(e.target.value)}
+              rows={4}
+              spellCheck={false}
+              placeholder="Например: h1 { font-size: 3.5rem; }"
+              className="resize-none rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 font-mono text-xs outline-none placeholder:text-zinc-600 focus:border-violet-500"
+            />
+          </div>
+
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-300">
+            <input
+              type="checkbox"
+              checked={contactEnabled}
+              onChange={(e) => setContactEnabled(e.target.checked)}
+              className="h-4 w-4 accent-violet-500"
+            />
+            Форма заявки с уведомлениями
+          </label>
 
           <div className="mt-auto flex flex-col gap-2">
             <button

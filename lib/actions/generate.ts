@@ -120,6 +120,8 @@ const settingsSchema = z.object({
     .min(1, "Выбери хотя бы одну секцию")
     .max(10, "Максимум 10 секций"),
   prompt: z.string().trim().max(500, "Требования слишком длинные"),
+  customCss: z.string().trim().max(50_000, "CSS слишком большой"),
+  contactEnabled: z.boolean(),
 });
 
 export async function updateSiteSettings(
@@ -136,13 +138,15 @@ export async function updateSiteSettings(
     style: formData.get("style"),
     sections: formData.getAll("sections").map(String),
     prompt: formData.get("prompt"),
+    customCss: formData.get("customCss"),
+    contactEnabled: formData.get("contactEnabled") === "true",
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
-  const { description, style, sections, prompt } = parsed.data;
+  const { description, style, sections, prompt, customCss, contactEnabled } = parsed.data;
   await prisma.site.update({
     where: { id: site.id },
-    data: { description, style, sections: sections.join(","), prompt },
+    data: { description, style, sections: sections.join(","), prompt, customCss, contactEnabled },
   });
   revalidatePath(`/build/${site.id}`);
 

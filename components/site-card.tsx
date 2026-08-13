@@ -1,19 +1,28 @@
 import Link from "next/link";
 
 import DeleteSiteButton from "@/components/delete-site-button";
+import { sitePreviewSvg } from "@/lib/preview";
 
 type SiteCardProps = {
   id: string;
   name: string;
   slug: string;
+  style: string;
   published: boolean;
   updatedAt: string;
   views: number;
 };
 
-export default function SiteCard({ id, name, slug, published, updatedAt, views }: SiteCardProps) {
+export default function SiteCard({ id, name, slug, style, published, updatedAt, views }: SiteCardProps) {
+  const preview = sitePreviewSvg(name, style);
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 transition-colors hover:border-zinc-700">
+      {/* eslint-disable-next-line @next/next/no-img-element -- svg data-uri, не требует оптимизации */}
+      <img
+        src={preview}
+        alt={`Лендинг ${name}`}
+        className="h-36 w-full rounded-lg border border-zinc-800 object-cover"
+      />
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="truncate font-semibold">{name}</h3>

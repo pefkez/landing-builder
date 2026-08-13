@@ -18,21 +18,24 @@ model User {
 }
 
 model Site {
-  id          String   @id @default(cuid())
-  userId      String
-  name        String
-  slug        String   @unique
-  description String   @default("")
-  style       String   @default("modern")
-  sections    String   @default("hero,features,cta")
-  prompt      String   @default("")
-  html        String   @default("")
-  published   Boolean  @default(false)
-  views       Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  generations GenerationLog[]
+  id             String   @id @default(cuid())
+  userId         String
+  name           String
+  slug           String   @unique
+  description    String   @default("")
+  style          String   @default("modern")
+  sections       String   @default("hero,features,cta")
+  prompt         String   @default("")
+  customCss      String   @default("")
+  contactEnabled Boolean  @default(false)
+  html           String   @default("")
+  published      Boolean  @default(false)
+  views          Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generations    GenerationLog[]
+  leads          Lead[]
 }
 
 model GenerationLog {
@@ -40,6 +43,17 @@ model GenerationLog {
   siteId    String
   prompt    String
   model     String   @default("")
+  createdAt DateTime @default(now())
+  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+}
+
+model Lead {
+  id        String   @id @default(cuid())
+  siteId    String
+  name      String   @default("")
+  email     String   @default("")
+  phone     String   @default("")
+  message   String   @default("")
   createdAt DateTime @default(now())
   site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
 }

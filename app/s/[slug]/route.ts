@@ -35,6 +35,58 @@ function injectSeo(
   return tags + "\n" + html;
 }
 
+function injectCustomCss(html: string, css: string): string {
+  const trimmed = css.trim();
+  if (!trimmed) return html;
+  const style = `<style>\n${trimmed}\n</style>`;
+  const head = html.match(/<\/head>/i);
+  if (head) return html.replace(/<\/head>/i, `${style}\n</head>`);
+  return `${style}\n${html}`;
+}
+
+function injectLeadScript(html: string, slug: string): string {
+  const script = `<script>
+(function () {
+  var api = "/api/lead";
+  document.addEventListener("submit", function (e) {
+    var form = e.target;
+    if (!(form instanceof HTMLFormElement) || form.dataset.lead !== "true") return;
+    e.preventDefault();
+    var data = {
+      slug: ${JSON.stringify(slug)},
+      name: (form.elements.namedItem("name") || {}).value || "",
+      email: (form.elements.namedItem("email") || {}).value || "",
+      phone: (form.elements.namedItem("phone") || {}).value || "",
+      message: (form.elements.namedItem("message") || {}).value || ""
+    };
+    var btn = form.querySelector("button[type=submit]");
+    if (btn) btn.disabled = true;
+    fetch(api, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (btn) btn.disabled = false;
+        var ok = document.createElement("div");
+        ok.textContent = res.ok ? "Спасибо! Заявка отправлена" : (res.error || "Ошибка отправки");
+        ok.style.cssText = "margin-top:12px;padding:12px;border-radius:8px;font:600 14px/1.4 sans-serif;" +
+          (res.ok ? "background:#d1fae5;color:#065f46;" : "background:#fee2e2;color:#991b1b;");
+        form.parentNode.insertBefore(ok, form.nextSibling);
+        if (res.ok) form.reset();
+      })
+      .catch(function () {
+        if (btn) btn.disabled = false;
+      });
+  });
+})();
+</script>`;
+  const body = html.match(/<\/body>/i);
+  if (body) return html.replace(/<\/body>/i, `${script}\n</body>`);
+  return html + script;
+}
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ slug: string }> }
@@ -58,11 +110,13 @@ export async function GET(
   }
 
   const origin = getSiteUrl();
-  const html = injectSeo(site.html, {
+  let html = injectSeo(site.html, {
     title: site.name,
     description: site.description || `${site.name} — лендинг`,
     url: `${origin}/s/${site.slug}`,
   });
+  html = injectCustomCss(html, site.customCss);
+  if (site.contactEnabled) html = injectLeadScript(html, site.slug);
 
   return new Response(html, {
     headers: {

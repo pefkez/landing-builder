@@ -31,6 +31,8 @@ export default async function BuildPage({
         style: site.style,
         sections: site.sections,
         prompt: site.prompt,
+        customCss: site.customCss,
+        contactEnabled: site.contactEnabled,
         html: site.html,
         published: site.published,
         views: site.views,

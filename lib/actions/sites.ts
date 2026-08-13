@@ -8,11 +8,13 @@ import { prisma } from "@/lib/prisma";
 import { getSitesLimit } from "@/lib/limits";
 import { requireUser } from "@/lib/user";
 import { slugify } from "@/lib/slugify";
+import { getTemplate } from "@/lib/templates";
 
 export type CreateSiteState = { error?: string } | undefined;
 
 const createSchema = z.object({
   name: z.string().trim().min(1, "Введи название сайта").max(60, "Название слишком длинное"),
+  template: z.string().trim().max(30).optional(),
 });
 
 export async function createSite(
@@ -20,7 +22,10 @@ export async function createSite(
   formData: FormData
 ): Promise<CreateSiteState> {
   const userId = await requireUser();
-  const parsed = createSchema.safeParse({ name: formData.get("name") });
+  const parsed = createSchema.safeParse({
+    name: formData.get("name"),
+    template: formData.get("template") || undefined,
+  });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   const limit = getSitesLimit();
@@ -34,8 +39,22 @@ export async function createSite(
   const existing = await prisma.site.findUnique({ where: { slug } });
   if (existing) slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
 
+  const template = parsed.data.template ? getTemplate(parsed.data.template) : undefined;
+
   const site = await prisma.site.create({
-    data: { userId, name, slug },
+    data: {
+      userId,
+      name,
+      slug,
+      ...(template
+        ? {
+            description: template.siteDescription,
+            style: template.style,
+            sections: template.sections,
+            prompt: template.prompt,
+          }
+        : {}),
+    },
   });
   revalidatePath("/dashboard");
   redirect(`/build/${site.id}`);
