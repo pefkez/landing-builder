@@ -48,7 +48,7 @@ export default async function DashboardPage() {
         <div className="rounded-xl border border-dashed border-zinc-800 p-12 text-center">
           <p className="text-lg font-medium">Пока пусто</p>
           <p className="mt-2 text-sm text-zinc-400">
-            Создай первый лендинг — ИИ соберёт его за 30 секунд
+            Создай первый лендинг — соберём его за 30 секунд
           </p>
         </div>
       ) : (

@@ -27,7 +27,7 @@ export default function Home() {
         <section className="mx-auto max-w-6xl px-4 pb-20 pt-16 text-center">
           <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-1.5 text-sm text-violet-300">
             <span className="h-2 w-2 animate-pulse rounded-full bg-violet-400" />
-            Генерация на Claude
+            Генерация за 30 секунд
           </div>
           <h1 className="mx-auto max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-6xl">
             Лендинг за{" "}
@@ -37,7 +37,7 @@ export default function Home() {
             без дизайнера
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-lg text-zinc-400">
-            Опиши продукт — ИИ соберёт продающий одностраничник: тексты, структура
+            Опиши продукт — соберём продающий одностраничник: тексты, структура
             и дизайн. Опубликуй по ссылке и делись с клиентами.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -107,8 +107,8 @@ export default function Home() {
                 },
                 {
                   step: "02",
-                  title: "ИИ собирает лендинг",
-                  text: "Claude генерирует структуру, тексты и дизайн. Перегенерируй, пока не понравится.",
+                  title: "Соберём лендинг",
+                  text: "Генератор собирает структуру, тексты и дизайн по описанию. Перегенерируй, пока не понравится.",
                 },
                 {
                   step: "03",
@@ -150,7 +150,7 @@ export default function Home() {
                 },
                 {
                   title: "Правки текстом",
-                  text: "Добавь требования: «оранжевые акценты, тариф 999₽» — ИИ учтёт.",
+                  text: "Добавь требования: «оранжевые акценты, тариф 999₽» — будут учтены.",
                 },
               ].map((f) => (
                 <div key={f.title} className="flex gap-4">
@@ -231,7 +231,7 @@ export default function Home() {
       </main>
 
       <footer className="border-t border-zinc-900 py-8 text-center text-sm text-zinc-600">
-        LandingBuilder — лендинги на ИИ. © 2026
+        LandingBuilder — лендинги за 30 секунд. © 2026
       </footer>
     </div>
   );

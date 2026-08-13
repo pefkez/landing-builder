@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LandingBuilder — лендинги на ИИ за 30 секунд",
+  title: "LandingBuilder — лендинги за 30 секунд",
   description:
-    "Опиши продукт — ИИ соберёт продающий одностраничник: тексты, структура и дизайн.",
+    "Опиши продукт — соберём продающий одностраничник: тексты, структура и дизайн.",
 };
 
 export default function RootLayout({

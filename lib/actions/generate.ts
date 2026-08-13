@@ -21,10 +21,10 @@ function extractHtml(text: string): string {
 
 function friendlyError(error: unknown): string {
   if (error instanceof APIError) {
-    if (error.status === 401) return "Невалидный ключ Anthropic";
-    if (error.status === 429) return "Слишком много запросов к ИИ, подожди минуту";
-    if (error.status === 529) return "ИИ перегружен, попробуй через минуту";
-    return `Ошибка ИИ (${error.status ?? "сеть"}). Попробуй ещё раз`;
+    if (error.status === 401) return "Невалидный ключ API";
+    if (error.status === 429) return "Слишком много запросов к генератору, подожди минуту";
+    if (error.status === 529) return "Генератор перегружен, попробуй через минуту";
+    return `Ошибка генератора (${error.status ?? "сеть"}). Попробуй ещё раз`;
   }
   if (error instanceof Error && error.message) return error.message;
   return "Неизвестная ошибка генерации";
@@ -74,8 +74,8 @@ export async function generateSite(siteId: string): Promise<{ html: string }> {
 
   let text: string;
   try {
-    const anthropic = new Anthropic({ apiKey });
-    const response = await anthropic.messages.create({
+    const client = new Anthropic({ apiKey });
+    const response = await client.messages.create({
       model,
       max_tokens: 8192,
       system:
@@ -92,7 +92,7 @@ export async function generateSite(siteId: string): Promise<{ html: string }> {
 
   const html = extractHtml(text);
   if (!html.includes("<html")) {
-    throw new Error("ИИ вернул не HTML. Попробуй ещё раз");
+    throw new Error("Генератор вернул не HTML. Попробуй ещё раз");
   }
 
   await prisma.$transaction([
